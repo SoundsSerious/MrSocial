@@ -39,7 +39,7 @@ class Social_Client(basic.LineReceiver):
         self.sendLine( 'AUTH: {}'.format(email) )
 
     def connectionMade(self):
-        self.factory.app.on_connect(self)
+        self.app.on_connect(self)
 
     def lineReceived(self,line):
         print line
@@ -50,6 +50,9 @@ class Social_Client(basic.LineReceiver):
                 self.factory.app.authenticated = True
             elif authArg == 'BAD_EMAIL:':
                 pass
+
+    def get_nearby(self,):
+        self.sendLine('NEARBY: {loc}, {distance}'.format(user=user,distance))
 
 class Social_ClientFactory(ReconnectingClientFactory):
 

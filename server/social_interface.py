@@ -84,7 +84,7 @@ class Social_Interface(ITwistedData):
         self._user_id = userId
         reactor.callLater(0, self.db_assignSelfFromDatabase)
         reactor.callLater(0, self.db_get_friends)
-        
+
     @ITwistedData.sqlalchemy_method
     def db_assignSelfFromDatabase(self,session):
         user = session.query(User).filter(User.email == self._user_id).first()
@@ -98,7 +98,7 @@ class Social_Interface(ITwistedData):
             else:
                 print 'user not initalized'
             reactor.callLater(0,self.user.print_info)
-        
+
     @ITwistedData.sqlalchemy_method
     def db_get_friends(self, session):
         '''Get Local Users Via GEO information'''
@@ -106,12 +106,22 @@ class Social_Interface(ITwistedData):
             user = session.query(User.id == self.user.id)
             for friend in user.all_friends:
                 print friend.name
-        
-            
-    @ITwistedData.sqlalchemy_method     
+
+    @ITwistedData.sqlalchemy_method
+    def db_get_nearby(self,session, distance = 10):
+        user = session.query(User).filter(User.id == self.user).first()
+        if user:
+            loc = user.current_location
+            nearby = loc.get_usersid_within(distance) #miles
+            if nearby:
+                pepes = session.query(User).filter(User).filter(User.id.in_(nearby) ).all()
+                return [user.asjson for user in pepes]
+
+
+    @ITwistedData.sqlalchemy_method
     def db_update(self, session):
         '''Updates User Interface Attributes (...From Database)'''
-        pass        
+        pass
 
     @property
     def user(self):

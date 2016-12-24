@@ -166,11 +166,11 @@ class SocialApp(App):
     @property
     def local_users(self):
         '''Yeild Users From Server'''
-        if self.social_client and self.authenticated:
-            users = self.social_client.get_local_users()
-            return users
-        else: #Shooting Blanks
-            return []
+#        if self.social_client and self.authenticated:
+#            users = self.social_client.get_local_users()
+#            return users
+#        else: #Shooting Blanks
+#            return []
 
 
 if __name__ == '__main__':
