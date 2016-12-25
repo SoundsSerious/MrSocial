@@ -29,7 +29,7 @@ class EmailAuth(object):
 
 @implementer(checkers.ICredentialsChecker)
 class EmailChecker(object):
-    credentialInterfaces = [IEmailStorage]
+    credentialInterfaces = (IEmailStorage,)
 
     @ITwistedData.sqlalchemy_method
     def checkEmails(self,session, email):
@@ -49,8 +49,8 @@ class EmailChecker(object):
 
 
     def requestAvatarId(self, credentials, firstTry = True):
+        print 'request avatarid with {}'.format( credentials )
         d = defer.maybeDeferred(self.checkEmails,credentials.email)
-        
         def checkOrRegister(foundUser):
             if foundUser: #Check Email List
                     return defer.succeed(credentials.email)
@@ -62,6 +62,6 @@ class EmailChecker(object):
             else:
                 return defer.fail(credError.UnhandledCredentials())
         
-        d.addCallback( checkOrRegister )
+        return d.addCallback( checkOrRegister )
         
 
