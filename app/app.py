@@ -18,6 +18,7 @@ from twisted.protocols import basic
 from twisted.cred import credentials
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
+from kivy.loader import Loader
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -44,7 +45,9 @@ from social_interface import *
 iphone =  {'width':320 , 'height': 568}#320 x 568
 
 SAMPLE_IMAGE = 'https://s-media-cache-ak0.pinimg.com/originals/ec/8e/8f/ec8e8f26ee298a6c852a7b7de37bd96b.jpg'
-
+DEFAULT_LOADING_IMAGE = os.path.join(EXP_PATH,'app','loading_apeture.png')
+from kivy.loader import Loader
+loadingImage = Loader.image(DEFAULT_LOADING_IMAGE)
 
 class SocialHomeWidget(Widget):
     '''Manages Creen Widgets With Application Drawer'''
@@ -166,11 +169,12 @@ class SocialApp(App):
     @property
     def local_users(self):
         '''Yeild Users From Server'''
-#        if self.social_client and self.authenticated:
-#            users = self.social_client.get_local_users()
-#            return users
-#        else: #Shooting Blanks
-#            return []
+        print 'get local users'
+        if self.social_client and self.authenticated:
+            users = self.social_client.perspective.callRemote('nearby',100)
+            return users
+        else: #Shooting Blanks
+            return []
 
 
 if __name__ == '__main__':

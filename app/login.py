@@ -76,9 +76,22 @@ class Login(Widget):
 
     def authenticate_login_value(self,value):
         msg = self._login.text
-        if msg and self.app.connection:
-            self.app.social_client.attemptConnection(str(msg))
+        if msg and self.app.social_client:
+            authAttempt = self.app.social_client.attemptEmailRegistration(str(msg))
+            authAttempt.addCallback(self._cb_authSuccess )
+            authAttempt.addErrback( self._cb_authFail )
             self._login.text = ""
+
+    def _cb_authSuccess(self,reference):
+        print 'Auth Succeeded {}'.format(reference)
+        #print dir(reference)
+        self.app.authenticated = True
+        self.app.connection = reference
+
+    def _cb_authFail(self, reason):
+        print 'Auth Succeeded {}'.format(reason)
+        self.app.authenticated = False
+
 
     def get_background_size(self):
         w,h = self.size
@@ -107,56 +120,56 @@ class Login(Widget):
         self._lay.size = self.size
         self._lay.pos = self.pos
 
-app = None
-if __name__ == '__main__':
-    global app
-
-    Clock.max_iteration = 20
-
-    class LoginApp(App):
-
-        host = 'localhost'
-        port = 17776
-
-        authenticated = BooleanProperty(False)
-        connection = ObjectProperty(None)
-
-        def build(self):
-            self.connectToServer()
-
-            self.sm = ScreenManager(transition=FadeTransition())
-
-            self.loginScreen = Screen(name = 'login')
-            self.login = Login(self, LOCAL_IMAGE)
-            self.loginScreen.add_widget(self.login)
-
-            self.mapscreen = Screen(name = 'map')
-            self.map = MapWidget()
-            self.mapscreen.add_widget(self.map)
-
-            self.sm.add_widget( self.loginScreen)
-            self.sm.add_widget( self.mapscreen)
-
-            self.sm.current = 'login'
-            self.bind(authenticated = self.auth_handler)
-            #Kickoff
-            self.auth_handler()
-
-            return self.sm
-
-        def auth_handler(self, *args):
-            if self.authenticated == False:
-                self.sm.current = 'login'
-            else:
-                self.sm.current = 'map'
-
-
-        def on_connect(self, connection):
-            print "connected successfully!"
-            #self.connection = connection
-
-        def connectToServer(self):
-            reactor.connectTCP(self.host, self.port, Social_ClientFactory(self))
-
-    app = LoginApp()
-    app.run()
+#app = None
+#if __name__ == '__main__':
+#    global app
+#
+#    Clock.max_iteration = 20
+#
+#    class LoginApp(App):
+#
+#        host = 'localhost'
+#        port = 17776
+#
+#        authenticated = BooleanProperty(False)
+#        connection = ObjectProperty(None)
+#
+#        def build(self):
+#            self.connectToServer()
+#
+#            self.sm = ScreenManager(transition=FadeTransition())
+#
+#            self.loginScreen = Screen(name = 'login')
+#            self.login = Login(self, LOCAL_IMAGE)
+#            self.loginScreen.add_widget(self.login)
+#
+#            self.mapscreen = Screen(name = 'map')
+#            self.map = MapWidget()
+#            self.mapscreen.add_widget(self.map)
+#
+#            self.sm.add_widget( self.loginScreen)
+#            self.sm.add_widget( self.mapscreen)
+#
+#            self.sm.current = 'login'
+#            self.bind(authenticated = self.auth_handler)
+#            #Kickoff
+#            self.auth_handler()
+#
+#            return self.sm
+#
+#        def auth_handler(self, *args):
+#            if self.authenticated == False:
+#                self.sm.current = 'login'
+#            else:
+#                self.sm.current = 'map'
+#
+#
+#        def on_connect(self, connection):
+#            print "connected successfully!"
+#            #self.connection = connection
+#
+#        def connectToServer(self):
+#            reactor.connectTCP(self.host, self.port, Social_ClientFactory(self))
+#
+#    app = LoginApp()
+#    app.run()

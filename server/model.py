@@ -105,8 +105,9 @@ class ScopedSession(object):
                 # should we rollback for safety?
                 if not self._auto_commit:
                     db_session.rollback()
-            except:
-                print 'rollback'
+            except Exception as e:
+                print 'ERROR: > rollback'
+                print e
                 db_session.rollback()
                 raise
             finally:

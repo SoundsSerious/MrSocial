@@ -21,7 +21,7 @@ log.startLogging(sys.stdout)
 
 def main():
     factory = ReconnectingPBClientFactory()
-    reactor.connectTCP("localhost", 8800, factory)
+    reactor.connectTCP("localhost", 17776, factory)
     #def1 = factory.login(credentials.UsernamePassword("user1", "pass1"))
     def1 = factory.login(EmailAuth('kevin.russe11.0100@gmail.com'))
 

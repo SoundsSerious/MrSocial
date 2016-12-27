@@ -148,7 +148,6 @@ class ReconnectingPBClientFactory(PBClientFactory,
         pass 
  
     def failedToGetPerspective(self, why): 
-        """The login process failed, most likely because of an authorization 
         failure (bad password), but it is also possible that we lost the new 
         connection before we managed to send our credentials. 
         """ 
