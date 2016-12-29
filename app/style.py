@@ -130,7 +130,7 @@ class RoundedButton(ButtonBehavior,Widget,StyleUnit):
     _styleist = RadialGradientStyleist
 
     def __init__(self, text = '',**kwargs):
-        super(ButtonBehavior,self).__init__(**kwargs)
+        super(RoundedButton,self).__init__(**kwargs)
         super(Widget,self).__init__(**kwargs)
         self._text = text
         self.initalizeStyle()
@@ -393,6 +393,9 @@ class RoundedLabel(Label):
         #print self.rect.size, self.rect.pos, self.box_pos, self.box_size, repr(self.text)
 
 app = None
+
+def halowarld(*args):
+    print 'helllllloo {}'.format(args)
 if __name__ == '__main__':
     import os
     global app
@@ -411,6 +414,9 @@ if __name__ == '__main__':
 #            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='left',\
 #                            background_color = (1,1,1,0.8),\
 #                            font_color = (0,0.2,0.5)))
+            buton = RoundedButton(text='ehhhelloo')
+            buton.bind(on_press =halowarld)
+            lay.add_widget(buton)
             return lay
 
     app = KivyApp()

@@ -40,7 +40,7 @@ class EmailChecker(object):
             defer.returnValue(True)
         else:
             defer.returnValue(False)
-    
+
     @ITwistedData.sqlalchemy_method
     def createUser(self,session, email):
         print session, email
@@ -52,8 +52,8 @@ class EmailChecker(object):
     def requestAvatarId(self, credentials, firstTry = True):
         print 'requesting avatarid with {}'.format( credentials )
         d = defer.maybeDeferred(self.checkEmails,credentials.email)
-        
-        def checkOrRegister(foundUser):
+
+        def _cb_checkOrRegister(foundUser):
             if foundUser: #Check Email List
                     return defer.succeed(credentials.email)
             elif validate_email(credentials.email) and firstTry: #Register Email If Valid Address
@@ -63,7 +63,14 @@ class EmailChecker(object):
                 d.addCallback(lambda arg: self.requestAvatarId(credentials, False))
             else:
                 return defer.fail(credError.UnhandledCredentials())
-        
-        return d.addCallback( checkOrRegister )
-        
+
+        def _cb_dbError(self,failure):
+            failure.trap(error.UnauthorizedLogin)
+            raise error.UnauthorizedLogin
+
+        d.addCallback( _cb_checkOrRegister )
+        d.addErrback(  _cb_dbError )
+
+        return d
+
 

@@ -322,21 +322,23 @@ class ShootWidget(DragableButton):
 class MyTab(BoxLayout, AndroidTabsBase):
     pass
 
+
+
 class MapWidget(Widget):
     '''In Which We Define A Map View With Interactivity'''
     _map = None
     _layout = None
     _menu = None
-
+    
     _shoot_btn_height = 15
 
     def __init__(self, lat=26.7153, lon= -80.05, zoom = 11, **kwargs):
-
         super(MapWidget, self).__init__(**kwargs)
-
+        
         self._layout = FloatLayout()
 
         self._map = MapView(zoom=zoom, lat=lat, lon=lon,size_hint=(1,1))
+        self._map.background_color = [0/255.,0/255.,0/255.,1]
         self._map.map_source = 'darkmap'
 
         self._shoot = ShootWidget(map = self._map,inital_pos=(self.width/2-self._shoot_btn_height\
