@@ -190,8 +190,6 @@ Builder.load_string(
             pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
             radius: self._radius
         StencilPop
-
-<-RoundedLabel>:
         ''')
 
 #
@@ -216,6 +214,98 @@ class RoundedImage(Image):
         self._radius = [self.height * self._radius_pct]
         #else:
         #    return [10]
+        
+Builder.load_string(
+'''
+<-RoundedWebImage>:
+    canvas:
+        Color:
+            rgb:  self.color
+        StencilPush
+        RoundedRectangle:
+            size: self.norm_image_size
+            pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
+            radius: self._radius
+        StencilUse
+        Rectangle:
+            texture: self.texture
+            size: self.norm_image_size
+            pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
+        StencilUnUse
+        RoundedRectangle:
+            size: self.norm_image_size
+            pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
+            radius: self._radius
+        StencilPop
+        ''')
+
+#
+class RoundedWebImage(AsyncImage):
+
+    _radius_pct = 0.5
+    _radius = [20]
+
+    def __init__(self,**kwargs):
+        super(RoundedWebImage,self).__init__(**kwargs)
+        self.bind(size = self.radius_cmd)
+        #self.bind(pos = self.center_image)
+
+    def center_image(self, *args):
+        print 'centering'
+        x,y = self.center
+        self.pos =   x - self.norm_image_size[0]/2.0,\
+                    y - self.norm_image_size[1]/2.0
+
+    def radius_cmd(self,*args):
+        #if self.height:
+        self._radius = [self.height * self._radius_pct]
+        #else:
+        #    return [10]
+        
+Builder.load_string(
+'''
+<-CircleWebImage>:
+    canvas:
+        Color:
+            rgb:  self.color
+        StencilPush
+        Ellipse:
+            size: min(self.norm_image_size), min(self.norm_image_size)
+            pos: self.center[0] - min(self.norm_image_size)/2.0,self.center[1] - min(self.norm_image_size)/2.0
+        StencilUse
+        Rectangle:
+            texture: self.texture
+            size: self.norm_image_size
+            pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
+        StencilUnUse
+        Ellipse:
+            size: min(self.norm_image_size), min(self.norm_image_size)
+            pos: self.center[0] - min(self.norm_image_size)/2.0,self.center[1] - min(self.norm_image_size)/2.0
+        StencilPop
+        ''')
+
+#
+class CircleWebImage(AsyncImage):
+
+    _radius_pct = 0.5
+    _radius = [20]
+
+    def __init__(self,**kwargs):
+        super(CircleWebImage,self).__init__(**kwargs)
+        self.bind(size = self.radius_cmd)
+        #self.bind(pos = self.center_image)
+
+    def center_image(self, *args):
+        print 'centering'
+        x,y = self.center
+        self.pos =   x - self.norm_image_size[0]/2.0,\
+                    y - self.norm_image_size[1]/2.0
+
+    def radius_cmd(self,*args):
+        #if self.height:
+        self._radius = [self.height * self._radius_pct]
+        #else:
+        #    return [10]        
 
 
 class RoundedLabel(Label):
@@ -311,15 +401,16 @@ if __name__ == '__main__':
             tex = 'Some Text '*10+'\n'
             tex *= 5
             lay = BoxLayout(orientation='vertical')
-            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='right',\
-                                        background_color = (1,1,1,0.8),\
-                                        font_color = (0,0.2,0.5)))
-            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='left',\
-                                        background_color = (1,1,1,0.8),\
-                                        font_color = (0,0.2,0.5)))
-            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='left',\
-                            background_color = (1,1,1,0.8),\
-                            font_color = (0,0.2,0.5)))
+            lay.add_widget(CircleWebImage(source = 'https://porschenewsroom.s3.amazonaws.com/porsche_newsroom/produkte/sonstiges/studie/p15_0783_rgb_a5_nrjpg/aadde8a0-92f8-4e5d-ac57-d611ee6bface_teaser_720x406x1_5.jpg'))
+#            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='right',\
+#                                        background_color = (1,1,1,0.8),\
+#                                        font_color = (0,0.2,0.5)))
+#            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='left',\
+#                                        background_color = (1,1,1,0.8),\
+#                                        font_color = (0,0.2,0.5)))
+#            lay.add_widget(RoundedLabel(text = 'Hey Hey How Are You?',halign='left',\
+#                            background_color = (1,1,1,0.8),\
+#                            font_color = (0,0.2,0.5)))
             return lay
 
     app = KivyApp()

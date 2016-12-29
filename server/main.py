@@ -28,7 +28,7 @@ class MainHandler(cyclone.web.RequestHandler):
 
 webapp = cyclone.web.Application([
     (r"/", MainHandler),
-    (r"/user-picture/(.*)", cyclone.web.StaticFileHandler,{'path': USR_IMG} )
+    (r"/(.*)", cyclone.web.StaticFileHandler,{'path': USR_IMG} )
 ])
 
 application = service.Application("social server")

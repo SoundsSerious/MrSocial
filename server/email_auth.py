@@ -35,6 +35,7 @@ class EmailChecker(object):
     def checkEmails(self,session, email):
         '''where we check if emails are in EMAILS'''
         isthere = session.query(exists().where(User.email==email)).first()
+        print isthere
         if any(isthere):
             defer.returnValue(True)
         else:
@@ -49,6 +50,7 @@ class EmailChecker(object):
 
 
     def requestAvatarId(self, credentials, firstTry = True):
+        print 'requesting avatarid with {}'.format( credentials )
         d = defer.maybeDeferred(self.checkEmails,credentials.email)
         
         def checkOrRegister(foundUser):
@@ -62,6 +64,6 @@ class EmailChecker(object):
             else:
                 return defer.fail(credError.UnhandledCredentials())
         
-        d.addCallback( checkOrRegister )
+        return d.addCallback( checkOrRegister )
         
 

@@ -28,38 +28,39 @@ class EmailAuth(object):
     def __init__(self, email):
         self.email = email
 
+
 class ReconnectingPBClientFactory(PBClientFactory,
                                  protocol.ReconnectingClientFactory):
     """Reconnecting client factory for PB brokers.
 
     Like PBClientFactory, but if the connection fails or is lost, the factory
     will attempt to reconnect.
-    
+
     Right now we use this as the interface to the server on the client side so we only
     provion for one server connection. This would be a problem if we have multiple hubs,
     or adopt a mesh style network (which would be awesome).
     """
     _root = None
     _perspective = None
-    
+
     def __init__(self):
        PBClientFactory.__init__(self)
        self._doingLogin = False
        self._doingGetPerspective = False
        self.initialize()
-       
+
     @property
     def root(self):
         return self._root
-        
+
     @property
     def perspective(self):
         return self._perspective
-    
-    def initialize(self,interval=5):
+
+    def initialize(self,interval=60):
         self.ping()
         l = task.LoopingCall(self.ping)
-        l.start(interval) # call every second  
+        l.start(interval) # call every second
 
     def clientConnectionFailed(self, connector, reason):
         print 'connection failed'
@@ -83,15 +84,15 @@ class ReconnectingPBClientFactory(PBClientFactory,
         print 'connection made'
         self.resetDelay()
         PBClientFactory.clientConnectionMade(self, broker)
-        
+
     def log(self,*args):
-        print 'Got {}||\t{}'.format(datetime.now().isoformat(),args)
-        
+        print 'Got {}||\t{}'.format(datetime.now().isoformat(),'|'.join(args))
+
     def ping(self):
         print 'ping'
         if self.perspective:
             d = self.perspective.callRemote('ping')
-            d.addCallback(self.log)        
+            d.addCallback(self.log)
 
     # newcred methods
     def login(self, credentials, client=None):
@@ -120,15 +121,15 @@ class ReconnectingPBClientFactory(PBClientFactory,
                 credentials.password, client)
         d.addCallbacks(self._cb_assignPerspective, self._cb_loginFail)
         return d
-        
+
     def _cbEmailLogin(self, root, credentials, client):
-        return root.callRemote("loginEmail", credentials.email, client)        
+        return root.callRemote("loginEmail", credentials.email, client)
 
     def _cb_assignPerspective(self, perspective):
         print 'assigning perspective {}'.format(perspective)
         self._perspective = perspective
         return perspective
-        
+
     def _cb_loginFail(self, why):
         """The login process failed, most likely because of an authorization
         failure (bad password), but it is also possible that we lost the new
@@ -160,7 +161,7 @@ class Social_ClientFactory(ReconnectingPBClientFactory):
     def attemptEmailRegistration(self,email):
         d = self.login( EmailAuth(email) )
         return d
-        
+
 
 #    def failedToGetPerspective(self, why):
 #        """The login process failed, most likely because of an authorization
@@ -198,6 +199,5 @@ class Social_ClientFactory(ReconnectingPBClientFactory):
 ##                       serviceName, perspectiveName, client)
 ##        d.addErrback(self.log)
 ##        d.addCallbacks(self.gotPerspective, self.failedToGetPerspective)
-       
 
-        
+

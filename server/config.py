@@ -25,8 +25,9 @@ else:
     ENG_STR = 'postgresql://Cabin@localhost:5432/postgis_test'
     USR_IMG = os.path.join(EXP_PATH,'user_images')
 
-STORE = FileSystemStore(os.path.join(USR_IMG,'user-picture'),HOME_URL)
-print STORE
+STORE_URL = 'http://{}:{}'.format(HOME_URL,WEB_PORT)
+STORE = FileSystemStore(USR_IMG,STORE_URL)
+print STORE_URL, STORE.base_url, STORE.path
 APP_PATH = os.path.join(EXP_PATH,'app')
 SRV_PATH = os.path.join(EXP_PATH,'server')
 LOCAL_IMAGE = os.path.join(EXP_PATH,'app','Login_Image.jpg')
