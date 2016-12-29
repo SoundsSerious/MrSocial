@@ -21,6 +21,7 @@ from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from kivy.loader import Loader
 from kivy.uix.widget import Widget
 from kivy.uix.label import Label
+from kivy.uix.button import *
 from kivy.uix.textinput import TextInput
 from kivy.uix.image import AsyncImage
 from kivy.uix.floatlayout import FloatLayout
@@ -42,6 +43,8 @@ from message import *
 from profiles import *
 from social_interface import *
 
+
+
 iphone =  {'width':320 , 'height': 568}#320 x 568
 
 SAMPLE_IMAGE = 'https://s-media-cache-ak0.pinimg.com/originals/ec/8e/8f/ec8e8f26ee298a6c852a7b7de37bd96b.jpg'
@@ -53,32 +56,51 @@ class SocialHomeWidget(Widget):
     '''Manages Creen Widgets With Application Drawer'''
 
     app = None
+    initialized = False
 
-    def __init__(self, app):
-        super(SocialHomeWidget,self).__init__()
+    def __init__(self, app, **kwargs):
+        super(SocialHomeWidget,self).__init__(**kwargs)
         self.app = app
-        self.setupMenu()
-        self.setupAppPanel()
-
+        self.app.bind(user_id = self.checkUidThenFire)
+        self.setupMenuAndSubWidgets()
         self.bind(pos = self.update_rect,
                   size = self.update_rect)
 
-    def setupMenu(self):
+
+    def initialize(self):
+        self.setupAppPanel()
+
+    def checkUidThenFire(self,instance,userId):
+        if not self.initialized and userId:
+            self.initialize()
+            
+    def edit_user_info(self,*args,**kwargs):
+        print 'hey hey whats going on...(im getting edited)'
+
+    def setupMenuAndSubWidgets(self):
         self.menu = NavigationDrawer()
         self.menu.anim_type = 'reveal_below_anim'
-
-        self.menu_panel = BoxLayout(orientation='vertical')
-        self.menu_panel.add_widget(Label(text='User Profile'))
-        self.menu.add_widget(self.menu_panel)
         self.add_widget( self.menu )
 
+        self.maps = MapWidget()
+        self.profiles = SwipingWidget(self.app)
+        self.chat = MessageWidget(self.app)
+
     def setupAppPanel(self):
+        #First Widget Added To Menu Is The Actual Menu
+        self.menu_panel = BoxLayout(orientation='vertical')
+        self.menu_panel.add_widget(ProfileButton(self.app.user_id,target_func = self.edit_user_info))
+        self.menu.add_widget(self.menu_panel)
+
+        #The Second Added Is For the Main Widget
         self.menuScreenManager = ScreenManager(transition=FadeTransition())
         self.menu.add_widget(self.menuScreenManager)
 
-        self.addMenuScreenWidget('maps',MapWidget())
-        self.addMenuScreenWidget('profiles',SwipingWidget(self.app))
-        self.addMenuScreenWidget('chat',MessageWidget(self.app))
+        #Different Views Are Added Here, Some could be hidden not listed here
+        #ie... a user editing screen -> profile button
+        self.addMenuScreenWidget('maps',self.maps)
+        self.addMenuScreenWidget('profiles',self.profiles)
+        self.addMenuScreenWidget('chat',self.chat)
 
         self.changeScreen('maps')
 
@@ -91,8 +113,6 @@ class SocialHomeWidget(Widget):
         #Add The Widget Itself
         screen = Screen(name = name)
         screen.add_widget(new_widget)
-
-        setattr(self,name,new_widget)
 
         self.menuScreenManager.add_widget(screen)
 
@@ -112,8 +132,12 @@ class SocialApp(App):
 
     authenticated = BooleanProperty(False)
     social_client = ObjectProperty(None)
+
     friends = ListProperty(None)
     projects = ListProperty(None)
+    local_users = ListProperty(None)
+
+    user_id = NumericProperty(None)
     user_object = ObjectProperty(None)
 
     def build(self):
@@ -127,6 +151,7 @@ class SocialApp(App):
             self.loginScreenManager.current = 'login'
         else:
             self.loginScreenManager.current = 'app'
+            reactor.callLater(1,self.update_client)
 
     def setupLoginScreen(self):
         Window.size = (iphone['width'],iphone['height'])
@@ -145,6 +170,7 @@ class SocialApp(App):
 
         self.loginScreenManager.current = 'login'
         self.bind(authenticated = self.auth_handler)
+        self.bind(social_client = self.on_social_client)
         #Kickoff
         self.auth_handler()
 
@@ -155,26 +181,100 @@ class SocialApp(App):
         self.social_client = client
 
     def on_social_client(self,instance, value):
-        self.update_client()
+        print 'updating social client'
+        reactor.callLater(1,self.update_client)
 
     def update_client(self):
-        #Get User Info
-        #Get Friends
-        #Get Projects
+        print 'updating client'
+        #Get Nearby
+        d = defer.maybeDeferred(self.get_user_id)
+        #Pass User Id
+        d.addCallback(self.get_user_info)
+        d.addCallback(self.get_friends)
+        d.addCallback(self.get_local_users)
+
         pass
 
     def connectToServer(self):
         reactor.connectTCP(self.host, self.port, Social_ClientFactory(self))
 
-    @property
-    def local_users(self):
-        '''Yeild Users From Server'''
-        print 'get local users'
+
+    def get_user_id(self):
         if self.social_client and self.authenticated:
-            users = self.social_client.perspective.callRemote('nearby',100)
-            return users
+            d = self.social_client.perspective.callRemote('user_id')
+            return d.addCallback( self._cb_assignUserId )
+        else:
+            return None
+
+    def get_user_info(self, user_id=None):
+        '''load user info, defaults to self, if self will update user_dict info'''
+
+        if user_id:
+            uid = user_id
+        elif self.user_id:
+            uid = self.user_id
+        else:
+            uid = None
+
+        if self.social_client and self.authenticated and uid:
+            d = self.social_client.perspective.callRemote('get_user_info', uid)
+            d.addCallback(self._cb_jsonToDict)
+            if self.user_id and uid == self.user_id:
+                d.addCallback( self._cb_assignUserInfo )
+            return d
+        else:
+            return None
+
+    def get_local_users(self, *args):
+        '''Yeild Users From Server'''
+        print 'get local users from {}'.format(self.user_id)
+        if self.social_client and self.authenticated:
+            d = self.social_client.perspective.callRemote('nearby',100)
+            return d.addCallback(self._cb_assignLocalUsers)
         else: #Shooting Blanks
             return []
+
+    def get_friends(self, *args):
+        '''Yeild Users From Server'''
+        print 'get friends from {}'.format(self.user_id)
+        if self.social_client and self.authenticated:
+            d = self.social_client.perspective.callRemote('friend_ids')
+            return d.addCallback(self._cb_assignFriends)
+        else: #Shooting Blanks
+            return []
+
+    def _cb_jsonToDict(self, json_information):
+        if json_information:
+            return json.loads(json_information)
+
+
+    def _cb_assignUserInfo(self,user_dict):
+        print 'assigning user info {}'.format(user_dict)
+        if user_dict:
+            self.user_object = user_dict
+            return self.user_object
+
+    def _cb_assignUserId(self,userId):
+        print 'assigning user id {}'.format(userId)
+        if userId or userId == 0:
+            self.user_id = userId
+            return userId
+
+    def _cb_assignLocalUsers(self,localUsersResponse):
+        print 'assigning local users {}'.format( localUsersResponse )
+        if localUsersResponse:
+            self.local_users = localUsersResponse
+            return self.local_users
+        return []
+
+    def _cb_assignFriends(self,friendsList):
+        print 'assigning friends {}'.format( friendsList )
+        if friendsList:
+            self.friends = friendsList
+            return self.friends
+        return []
+
+
 
 
 if __name__ == '__main__':

@@ -35,6 +35,7 @@ import time
 import traceback
 import enum
 import functools
+import json
 
 from config import *
 from json_interface import *
@@ -53,13 +54,16 @@ Session = scoped_session(session_factory, scopefunc = scopefunc)
 
 LAT,LONG = 26.7153, -80.053
 
-
+print STORE.path
 ###############################################################################
 #Twisted Interface
 ###############################################################################
 
 class ITwistedData(object):
-    '''In Which Social Database Interaction Occurs'''
+    '''In Which Social Database Interaction Occurs
+
+    sqlalchemy_methods should not be run simultaniously... defer returning is problematic
+    in recursive setting'''
 
     @staticmethod
     def sqlalchemy_method(function):
@@ -203,11 +207,20 @@ class User(Base):
         key = '{0}'.format(self.id)
         return int(hashlib.sha1(key).hexdigest(), 16)
 
-    def print_info(self):
-        print self.name
-        print self.id
-        print self.info
-        print self.all_friends
+    @property
+    def user_json(self):
+        '''should be called from within scope of session'''
+        print 'user json'
+        with store_context(STORE):
+            pictures = list([pic.locate() for pic in self.pictures])
+        info = dict(name = self.name,\
+                    info = self.info,\
+                    location = self.current_location.pt_txt,\
+                    images = pictures
+                    )
+        return json.dumps(info, ensure_ascii=False)
+
+
 
     # this relationship is used for persistence
     friends = relationship("User", secondary=friendship,
@@ -252,16 +265,6 @@ class UserSpot(Base):
     def object_id(self):
         key = '{0},{1}'.format(self.project_id, self.order_index)
         return int(hashlib.sha1(key).hexdigest(), 16)
-
-    @ITwistedData.sqlalchemy_method
-    def get_usersid_within(self,session, miles):
-        distance = miles * 0.014472
-        #1 mile = 0.014472 degrees
-        center_point = self.pt_txt
-        spotsusers = session.query(User).join(UserSpot, UserSpot.user_id == User.id).\
-            filter(func.ST_DFullyWithin( UserSpot.geom,  self.pt_txt, distance))\
-            .distinct(UserSpot.user_id).all()
-        return [usr.id for usr in spotsusers]
 
 class UserPicture(Base, Image):
     """User picture model."""
@@ -350,31 +353,6 @@ class ProjectSpot(Base):
         pt_txt = 'POINT({} {})'.format(pt.x, pt.y)
         return pt_txt
 
-    @ITwistedData.sqlalchemy_method
-    def get_usersid_within(self,session, miles=10):
-        distance = miles * 0.014472
-        #1 mile = 0.014472 degrees
-        center_point = self.pt_txt
-        spotsusers = session.query(User).join(UserSpot, UserSpot.user_id == User.id).\
-            filter(func.ST_DFullyWithin( UserSpot.geom,  self.pt_txt, distance))\
-            .distinct(UserSpot.user_id).all()
-        return [usr.id for usr in spotsusers]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -431,6 +409,7 @@ def makeProjects():
 
             #Add Some Pictures
             for i,path in enumerate(PROJ_PICS[proj]):
+                print 'path'
                 picture = project.pictures.get_image_set(order_index = i+1)
                 with open(path,'rb') as f:
                     picture.from_file(f, store=STORE)
@@ -484,7 +463,7 @@ def storeSomeUsers():
                     profile_pic.from_file(f, store = STORE)
 
 
-def generateThumbnails( height = None, width = None ):
+def generateThumbnails( height = None, width = None, ratio = None):
     with session_scope() as session:
         for usr in session.query( User ).all():
             for image_set in usr.pictures.image_sets:
@@ -494,6 +473,9 @@ def generateThumbnails( height = None, width = None ):
                 elif height:
                     usr_thumb = image_set.generate_thumbnail(store=STORE, \
                                                                 height = height)
+                elif ratio:
+                    usr_thumb = image_set.generate_thumbnail(store=STORE, \
+                                                                ratio = ratio)
 
 
 
@@ -503,6 +485,7 @@ if __name__ == '__main__':
     metadata.create_all(engine)
     storeSomeUsers()
     generateThumbnails(width = 50)
+    generateThumbnails(ratio = 1)
     makeProjects()
     makeFriends()
 
