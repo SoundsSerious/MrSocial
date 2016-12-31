@@ -215,7 +215,7 @@ class User(Base):
             pictures = list([pic.locate() for pic in self.pictures])
         info = dict(name = self.name,\
                     info = self.info,\
-                    location = self.current_location.pt_txt,\
+                    location = self.current_location.latlong,\
                     images = pictures
                     )
         return json.dumps(info, ensure_ascii=False)
@@ -254,6 +254,11 @@ class UserSpot(Base):
     created = Column(DateTime, default=datetime.now())
     geom = Column(Geometry(geometry_type='POINT', srid=-1),\
         default = 'POINT({:3.9f} {:3.9f})'.format(LAT,LONG))
+
+    @property
+    def latlong(self):
+        pt = to_shape(self.geom)
+        return pt.x, pt.y
 
     @property
     def pt_txt(self):
@@ -346,6 +351,11 @@ class ProjectSpot(Base):
     parent_id = Column(Integer, ForeignKey('project.id'),nullable=True)
 
     created_date = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def latlong(self):
+        pt = to_shape(self.geom)
+        return pt.x, pt.y
 
     @property
     def pt_txt(self):
@@ -441,12 +451,12 @@ def storeSomeUsers():
 
                 new_user = User(name = name, email = email, info= 'stuff\n'*20,\
                                 user_mode = SECURITY_MODES['authorized'])
-                geo = UserSpot( geom = 'POINT({:3.3f} {:3.3f})'.format(LAT+random(),\
-                                                            LONG+random()),
+                geo = UserSpot( geom = 'POINT({:3.3f} {:3.3f})'.format(LAT+random()-0.5,\
+                                                            LONG+random()-0.5),
                                 created = datetime.now())
                 time.sleep(0.1)
-                geo2 = UserSpot( geom = 'POINT({:3.3f} {:3.3f})'.format(LAT+random(),\
-                                                            LONG+random()),
+                geo2 = UserSpot( geom = 'POINT({:3.3f} {:3.3f})'.format(LAT+random()-0.5,\
+                                                            LONG+random()-0.5),
                                  created = datetime.now())
                 new_user.locations.append(geo)
                 new_user.locations.append(geo2)

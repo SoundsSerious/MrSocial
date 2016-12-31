@@ -4,11 +4,12 @@ from kivy.graphics import *
 from kivy.graphics.vertex_instructions import *
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.behaviors import *
+from kivy.uix.image import *
 from kivy.garden.androidtabs import *
 
 
 from config import *
-
 
 from kivy.core.window import Window
 from kivy.animation import Animation
@@ -17,6 +18,40 @@ from kivy.uix.widget import Widget
 from kivy.properties import (
     ListProperty, NumericProperty, BooleanProperty, ObjectProperty)
 
+
+class AsyncMapMarker(ButtonBehavior, AsyncImage):
+    """A marker on a map, that must be used on a :class:`MapMarker`
+    """
+
+    anchor_x = NumericProperty(0.5)
+    """Anchor of the marker on the X axis. Defaults to 0.5, mean the anchor will
+    be at the X center of the image.
+    """
+
+    anchor_y = NumericProperty(0)
+    """Anchor of the marker on the Y axis. Defaults to 0, mean the anchor will
+    be at the Y bottom of the image.
+    """
+
+    lat = NumericProperty(0)
+    """Latitude of the marker
+    """
+
+    lon = NumericProperty(0)
+    """Longitude of the marker
+    """
+
+    source = StringProperty(None)
+    """Source of the marker, defaults to our own marker.png
+    """
+
+    # (internal) reference to its layer
+    _layer = None
+
+    def detach(self):
+        if self._layer:
+            self._layer.remove_widget(self)
+            self._layer = None
 
 class DragNDropWidget(Widget):
     # let kivy take care of kwargs and get signals for free by using
@@ -287,13 +322,6 @@ class ShootWidget(DragableButton):
                (self._icon_size[1] - self._img_size[1])/2)
         return (self.pos[0] + mrg[0],self.pos[1] + mrg[1])
 
-    @property
-    def img_pos(self):
-        mrg = ((self._icon_size[0] - self._img_size[0])/2,
-               (self._icon_size[1] - self._img_size[1])/2)
-        return (self.pos[0] + mrg[0],self.pos[1] + mrg[1])
-
-
 
     @property
     def initial_pos(self):
@@ -332,9 +360,10 @@ class MapWidget(Widget):
     
     _shoot_btn_height = 15
 
-    def __init__(self, lat=26.7153, lon= -80.05, zoom = 11, **kwargs):
+    def __init__(self,app, lat=26.7153, lon= -80.05, zoom = 11, **kwargs):
         super(MapWidget, self).__init__(**kwargs)
         
+        self.app = app
         self._layout = FloatLayout()
 
         self._map = MapView(zoom=zoom, lat=lat, lon=lon,size_hint=(1,1))
@@ -353,15 +382,17 @@ class MapWidget(Widget):
         self.bind(size=self.update_rect,
                   pos = self.update_rect)
 
+                
     @property
     def map(self):
-        return self._map
+        return self._map        
 
     def update_rect(self,*args):
         self._layout.size = self.size
         self._layout.pos = self.pos
         self._shoot.initial_pos = (self.width/2-self._shoot_btn_height,\
                                     self._shoot_btn_height*1.5)
+        
 
 
 

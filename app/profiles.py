@@ -7,47 +7,55 @@ from kivy.uix.carousel import Carousel
 from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.image import *
 from kivy.uix.button import *
-#from kivy.uix.behaviors.button import ButtonBehavior
-
+from kivy.uix.behaviors import *
+from kivy.uix.behaviors.button import ButtonBehavior
+from kivy.garden.mapview import MarkerMapLayer, MapLayer, MapMarker
+#from kivy.uix.effectwidget import *
+#effects = []# [HorizontalBlurEffect(size=0.1), VerticalBlurEffect(size=0.1), FXAAEffect()]
 import json
 
 from kivy.properties import *
 
 from style import *
+from maps import *
 
 from config import *
 
 path = EXP_PATH
 
-class ProfileDataLoadingWidget(Widget):
+class ProfileData(object):
     '''Profile Loading Functionality'''
 
     user_dict = ObjectProperty(None)
     images = ListProperty(None)
     info = StringProperty(None)
     name = StringProperty(None)
+    location = ListProperty(None)
 
-    def __init__(self, user_id,**kwargs):
-        super(ProfileDataLoadingWidget,self).__init__(**kwargs)
-        #Remote Call Server, Defer Creation Of Widgets
+    def loadDataFromServer(self, user_id, method = 'get_user_info'):
         app = App.get_running_app()
-        d = app.social_client.perspective.callRemote('get_user_info',user_id)
-        d.addCallback(self.createFromJson)
-        d.addCallback(self.initialize)
-
+        self.d = app.social_client.perspective.callRemote('get_user_info',user_id)
+        self.d.addCallback(self.createFromJson)
+        self.d.addCallback(self.initialize)
+        return self.d
 
     def createFromJson(self,user_json):
         self.user_dict = json.loads(user_json)
         self.images = self.user_dict['images']
         self.info = self.user_dict['info']
         self.name = self.user_dict['name']
+        self.location = self.user_dict['location']
 
     def initialize(self,*args):
         pass
 
 
-class ProfileView(ProfileDataLoadingWidget):
+class ProfileView(Widget,ProfileData):
 
+    def __init__(self, user_id,**kwargs):
+        super(ProfileView,self).__init__(**kwargs)
+        #Remote Call Server, Defer Creation Of Widgets
+        self.loadDataFromServer(user_id)
 
     def initialize(self,*args):
 
@@ -77,7 +85,7 @@ class ProfileView(ProfileDataLoadingWidget):
         self._layout.pos = self.pos
         self._layout.size = self.size
 
-class ProfileButton(ButtonBehavior,Widget):
+class ProfileButton(ButtonBehavior,Widget,ProfileData):
 
     def __init__(self, user_id,**kwargs):
         self.target_func = kwargs.pop('target_func', lambda: None)
@@ -85,23 +93,8 @@ class ProfileButton(ButtonBehavior,Widget):
         
         Widget.__init__(self,**kwargs)
         ButtonBehavior.__init__(self,**kwargs)
-        #ProfileDataLoadingWidget.__init__(self,user_id,**kwargs)
-        app = App.get_running_app()
-        print 'got app {}'.format(app)
-        d = app.social_client.perspective.callRemote('get_user_info',user_id)
-        d.addCallback(self.createFromJson)
-        d.addCallback(self.initialize)
+        self.loadDataFromServer(user_id)
 
-
-    def createFromJson(self,user_json):
-        self.user_dict = json.loads(user_json)
-        self.images = self.user_dict['images']
-        self.info = self.user_dict['info']
-        self.name = self.user_dict['name']
-        
-        
-        
-        
 
     def on_press(self):
         print 'calling target_func'
@@ -129,9 +122,52 @@ class ProfileButton(ButtonBehavior,Widget):
         self._layout.size = self.size
 
 
+Builder.load_string("""
+<-ProfileMapIcon>:
+    size_hint: None, None
+    source: root.source
+    size: [20,20]
+    allow_stretch: True
 
+    canvas:
+        Color:
+            rgb: 1,1,1
+        Ellipse:
+            pos: self.pos
+            size: min(self.size),min(self.size)        
+        StencilPush
+        Ellipse:
+            pos: self.pos[0]+1,self.pos[1]+1,
+            size: min(self.size)-2,min(self.size)-2
+        StencilUse
+        Rectangle:
+            texture: self.texture
+            pos: self.pos
+            size: self.size
+        StencilUnUse
+        Ellipse:
+            pos: self.pos
+            size: min(self.size)-2,min(self.size)-2
+        StencilPop
+""")
 
-
+class ProfileMapIcon(AsyncMapMarker,EffectWidget,ProfileData):
+    effects = [HorizontalBlurEffect(size=0.1), VerticalBlurEffect(size=0.1), FXAAEffect()]
+    def __init__(self,maps,user_id,**kwargs):
+        super(ProfileMapIcon,self).__init__()
+        EffectWidget.__init__(self)
+        self.maps = maps
+        
+        d = self.loadDataFromServer(user_id)
+        d.addCallback(self.setData)
+        
+    def setData(self,*args):
+        self.source = self.images[-1]
+        self.lat = self.location[0]
+        self.lon = self.location[1]
+        print 'adding at {},{}'.format(self.lat,self.lon)
+        self.maps.map.add_marker(self)
+        
 class SwipingWidget(Widget):
 
     canidates = ListProperty(None)
@@ -144,14 +180,13 @@ class SwipingWidget(Widget):
 
         self.add_widget(self.swiper)
 
-        self.app.bind(local_users = self.updateNearby)
         self.bind(pos= self.update_rect,
                   size = self.update_rect)
 
-    def updateNearby(self,instance,values):
-        if values:
+    def updateNearby(self,local_users):
+        if local_users:
             self.canidates = []
-            for user_id in values:
+            for user_id in local_users:
                 self.canidates.append(user_id)
                 profile = ProfileView(user_id)
                 self.swiper.add_widget(profile)
@@ -181,6 +216,6 @@ if __name__ == '__main__':
 
             return swiper
 
-    #setWindow(**iphone)
     profileApp = ProfilesApp()
     profileApp.run()
+    

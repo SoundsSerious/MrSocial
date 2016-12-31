@@ -27,12 +27,11 @@ from kivy.uix.image import AsyncImage
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.screenmanager import ScreenManager, Screen, FallOutTransition, \
                                     FadeTransition, RiseInTransition
-
 from kivy.properties import *
 from kivy.clock import Clock
 from kivy.app import App
 from kivy.core.window import Window
-
+#from kivy.garden.smaa import SMAA
 from kivy.garden.navigationdrawer import NavigationDrawer
 
 from config import *
@@ -57,18 +56,39 @@ class SocialHomeWidget(Widget):
 
     app = None
     initialized = False
+    
+    maps = ObjectProperty(None)
+    profiles = ObjectProperty(None)
+    chat = ObjectProperty(None)
 
     def __init__(self, app, **kwargs):
         super(SocialHomeWidget,self).__init__(**kwargs)
         self.app = app
-        self.app.bind(user_id = self.checkUidThenFire)
+        
         self.setupMenuAndSubWidgets()
-        self.bind(pos = self.update_rect,
+        
+        #Callbacks
+        self.app.bind(user_id = self.checkUidThenFire,\
+                      local_users = self.update_on_local_users,\
+                      friends = self.update_on_friends)
+        self.bind(pos =  self.update_rect,
                   size = self.update_rect)
 
 
     def initialize(self):
         self.setupAppPanel()
+
+    def update_on_local_users(self,instance,local_users):
+        self.profiles.updateNearby(local_users)
+            
+    def update_on_friends(self,instance,friends):
+        for user_id in friends:
+            print 'adding {}'.format(user_id)
+            icon = ProfileMapIcon(self.maps,user_id)
+            print 'added {}'.format(icon)
+        
+        
+        
 
     def checkUidThenFire(self,instance,userId):
         if not self.initialized and userId:
@@ -82,14 +102,15 @@ class SocialHomeWidget(Widget):
         self.menu.anim_type = 'reveal_below_anim'
         self.add_widget( self.menu )
 
-        self.maps = MapWidget()
+        self.maps = MapWidget(self.app)
         self.profiles = SwipingWidget(self.app)
         self.chat = MessageWidget(self.app)
 
     def setupAppPanel(self):
         #First Widget Added To Menu Is The Actual Menu
         self.menu_panel = BoxLayout(orientation='vertical')
-        self.menu_panel.add_widget(ProfileButton(self.app.user_id,target_func = self.edit_user_info))
+        self.menu_panel.add_widget(ProfileButton(self.app.user_id,\
+                                            target_func = self.edit_user_info))
         self.menu.add_widget(self.menu_panel)
 
         #The Second Added Is For the Main Widget
@@ -192,9 +213,7 @@ class SocialApp(App):
         d.addCallback(self.get_user_info)
         d.addCallback(self.get_friends)
         d.addCallback(self.get_local_users)
-
-        pass
-
+        
     def connectToServer(self):
         reactor.connectTCP(self.host, self.port, Social_ClientFactory(self))
 
