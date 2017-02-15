@@ -312,6 +312,10 @@ class ShootWidget(DragableButton):
         self.bind(pos = self.update_canvas,
                   size = self.update_canvas)
 
+    def update_canvas(self,*args):
+        self._ring.pos = self.pos
+        self._apeture.pos = self.img_pos
+
     @property
     def map(self):
         return self._map_widg
@@ -340,9 +344,7 @@ class ShootWidget(DragableButton):
         marker = MapMarker(lat = coord.lat,lon = coord.lon)
         self.map.add_marker(marker)
 
-    def update_canvas(self,*args):
-        self._ring.pos = self.pos
-        self._apeture.pos = self.img_pos
+
 
 
 
@@ -357,12 +359,12 @@ class MapWidget(Widget):
     _map = None
     _layout = None
     _menu = None
-    
+
     _shoot_btn_height = 15
 
     def __init__(self,app, lat=26.7153, lon= -80.05, zoom = 11, **kwargs):
         super(MapWidget, self).__init__(**kwargs)
-        
+
         self.app = app
         self._layout = FloatLayout()
 
@@ -382,17 +384,17 @@ class MapWidget(Widget):
         self.bind(size=self.update_rect,
                   pos = self.update_rect)
 
-                
+
     @property
     def map(self):
-        return self._map        
+        return self._map
 
     def update_rect(self,*args):
         self._layout.size = self.size
         self._layout.pos = self.pos
         self._shoot.initial_pos = (self.width/2-self._shoot_btn_height,\
                                     self._shoot_btn_height*1.5)
-        
+
 
 
 
@@ -410,7 +412,7 @@ if __name__ == '__main__':
     class MapViewApp(App):
         def build(self):
             #self.m2 = MapMarker(lat=26.7153, lon= -80.05)
-            self.mapw = MapWidget()
+            self.mapw = MapWidget(self,lat=26.7153, lon= -80.05)
             #self.mapw.map.add_marker(self.m2)
 
             from kivy.core.window import Window

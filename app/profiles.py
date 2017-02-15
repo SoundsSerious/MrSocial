@@ -9,9 +9,11 @@ from kivy.uix.image import *
 from kivy.uix.button import *
 from kivy.uix.behaviors import *
 from kivy.uix.behaviors.button import ButtonBehavior
+from kivy.uix.effectwidget import *
+
 from kivy.garden.mapview import MarkerMapLayer, MapLayer, MapMarker
-#from kivy.uix.effectwidget import *
-#effects = []# [HorizontalBlurEffect(size=0.1), VerticalBlurEffect(size=0.1), FXAAEffect()]
+from kivy.garden.smaa import SMAA
+
 import json
 
 from kivy.properties import *
@@ -85,12 +87,43 @@ class ProfileView(Widget,ProfileData):
         self._layout.pos = self.pos
         self._layout.size = self.size
 
+class ProfileEditView(Widget,ProfileData):
+
+    def __init__(self,user_id,**kwargs):
+        super(ProfileEditView,self).__init__(**kwargs)
+
+    def initialize(self,*args):
+
+        user_info = ListAdapter(data= self.info.split('\n'),\
+                                cls = Label)
+        #Define Layout
+        self._layout = BoxLayout( orientation = 'vertical' )
+        self._name = Label( text = self.name.upper(), \
+                            font_name= os.path.join(EXP_PATH,'hotel_font.ttf'),
+                            valign = 'bottom', size_hint = (1,0.15),
+                            font_size=38, bold=True,)
+        #self._image = RoundedImage( source = image_url)
+        #                            #allow_stretch=True)
+        self._image = RoundedWebImage(source = self.images[0])
+        self._info = ListView( adapter = user_info, size_hint = (1,0.6) )
+
+        self._layout.add_widget(self._name)
+        self._layout.add_widget(self._image)
+        self._layout.add_widget(self._info)
+
+        self.add_widget(self._layout)
+
+        self.bind(pos = self.update_rect,
+                  size = self.update_rect)
+
+
+
 class ProfileButton(ButtonBehavior,Widget,ProfileData):
 
     def __init__(self, user_id,**kwargs):
         self.target_func = kwargs.pop('target_func', lambda: None)
         self.bind(on_press = self.target_func)
-        
+
         Widget.__init__(self,**kwargs)
         ButtonBehavior.__init__(self,**kwargs)
         self.loadDataFromServer(user_id)
@@ -134,7 +167,7 @@ Builder.load_string("""
             rgb: 1,1,1
         Ellipse:
             pos: self.pos
-            size: min(self.size),min(self.size)        
+            size: min(self.size),min(self.size)
         StencilPush
         Ellipse:
             pos: self.pos[0]+1,self.pos[1]+1,
@@ -152,22 +185,22 @@ Builder.load_string("""
 """)
 
 class ProfileMapIcon(AsyncMapMarker,EffectWidget,ProfileData):
-    effects = [HorizontalBlurEffect(size=0.1), VerticalBlurEffect(size=0.1), FXAAEffect()]
+    effects = [HorizontalBlurEffect(size=1), VerticalBlurEffect(size=1), FXAAEffect()]
     def __init__(self,maps,user_id,**kwargs):
         super(ProfileMapIcon,self).__init__()
         EffectWidget.__init__(self)
         self.maps = maps
-        
+
         d = self.loadDataFromServer(user_id)
         d.addCallback(self.setData)
-        
+
     def setData(self,*args):
         self.source = self.images[-1]
         self.lat = self.location[0]
         self.lon = self.location[1]
         print 'adding at {},{}'.format(self.lat,self.lon)
         self.maps.map.add_marker(self)
-        
+
 class SwipingWidget(Widget):
 
     canidates = ListProperty(None)
@@ -218,4 +251,3 @@ if __name__ == '__main__':
 
     profileApp = ProfilesApp()
     profileApp.run()
-    

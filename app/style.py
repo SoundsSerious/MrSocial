@@ -46,6 +46,7 @@ from kivy.uix.behaviors import *
 from kivy.uix.image import *
 from kivy.uix.effectwidget import *
 from kivy.core.text import Label as CoreLabel
+from kivy.garden.smaa import SMAA
 
 from kivy.garden.mapview import MapView
 from kivy.core.window import Window
@@ -267,31 +268,40 @@ Builder.load_string(
 <-CircleWebImage>:
     canvas:
         Color:
+            rgb:  self.borderColor
+        Ellipse:
+            size: min(self.norm_image_size), min(self.norm_image_size)
+            pos: self.center[0] - min(self.norm_image_size)/2.0,self.center[1] - min(self.norm_image_size)/2.0
+        Color:
             rgb:  self.color
         StencilPush
         Ellipse:
-            size: min(self.norm_image_size), min(self.norm_image_size)
-            pos: self.center[0] - min(self.norm_image_size)/2.0,self.center[1] - min(self.norm_image_size)/2.0
+            size: min(self.norm_image_size)-self.borderSize, min(self.norm_image_size)-self.borderSize
+            pos: self.center[0] - (min(self.norm_image_size)-self.borderSize)/2.0,self.center[1] - (min(self.norm_image_size)-self.borderSize)/2.0
         StencilUse
         Rectangle:
             texture: self.texture
-            size: self.norm_image_size
-            pos: self.center[0] - self.norm_image_size[0]/2.0,self.center[1] - self.norm_image_size[1]/2.0
+            size: self.norm_image_size[0]-self.borderSize, self.norm_image_size[1] -self.borderSize
+            pos: self.center[0] - (self.norm_image_size[0]-self.borderSize)/2.0,self.center[1] - (self.norm_image_size[1]-self.borderSize)/2.0
         StencilUnUse
         Ellipse:
-            size: min(self.norm_image_size), min(self.norm_image_size)
-            pos: self.center[0] - min(self.norm_image_size)/2.0,self.center[1] - min(self.norm_image_size)/2.0
+            size: min(self.norm_image_size)-self.borderSize, min(self.norm_image_size)-self.borderSize
+            pos: self.center[0] - (min(self.norm_image_size)-self.borderSize)/2.0,self.center[1] - (min(self.norm_image_size)-self.borderSize)/2.0
         StencilPop
         ''')
 
 #
-class CircleWebImage(AsyncImage):
+class CircleWebImage(SMAA,AsyncImage):
 
     _radius_pct = 0.5
     _radius = [20]
+    
+    borderColor = (1,1,1)
+    borderSize = 5
 
     def __init__(self,**kwargs):
-        super(CircleWebImage,self).__init__(**kwargs)
+        SMAA.__init__(self)
+        AsyncImage.__init__(self,**kwargs)
         self.bind(size = self.radius_cmd)
         #self.bind(pos = self.center_image)
 

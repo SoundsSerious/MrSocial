@@ -54,7 +54,7 @@ Session = scoped_session(session_factory, scopefunc = scopefunc)
 
 LAT,LONG = 26.7153, -80.053
 
-print STORE.path
+print 'Storing images in {}'.format(STORE.path)
 ###############################################################################
 #Twisted Interface
 ###############################################################################
@@ -129,30 +129,9 @@ except ImportError as e:
     inspect = __nomodule
     InstanceState = __nomodule
 
-
-###############################################################################
-#Many To Many Associations
-###############################################################################
-
-
-friendship = Table(
-    'friendship', Base.metadata,
-    Column('friend_a_id', Integer, ForeignKey('user.id'), primary_key=True),
-    Column('friend_b_id', Integer, ForeignKey('user.id'), primary_key=True),
-    Column('created_date',DateTime, default=datetime.utcnow)
-)
-
-membership = Table(
-    'membership', Base.metadata,
-    Column('project_id', Integer, ForeignKey('project.id'), primary_key=True),
-    Column('member_id', Integer, ForeignKey('user.id'), primary_key=True),
-    Column('created_date',DateTime, default=datetime.utcnow)
-)
-
 ###############################################################################
 #User Model
 ###############################################################################
-
 #Higher Levels Are Lower Use <
 SECURITY_MODES = dict(
             #Staffs / Wizards
@@ -169,6 +148,13 @@ SECURITY_MODES = dict(
 
             #Jerks
             kicked = 10)
+
+friendship = Table(
+    'user_friendship', Base.metadata,
+    Column('friend_a_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('friend_b_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('created_date',DateTime, default=datetime.utcnow)
+)
 
 class User(Base):
     """User model. Call Properties From Within Session Scope"""
@@ -187,6 +173,7 @@ class User(Base):
     pictures = image_attachment('UserPicture', uselist = True)
     locations = relationship('UserSpot', back_populates = 'user', order_by="UserSpot.created")
     proj_owned = relationship('Project')
+    staring_in = relationship("Role", back_populates="selected")
 
     @hybrid_property
     def current_location(self):
@@ -287,6 +274,13 @@ class UserPicture(Base, Image):
 #Project Model
 ###############################################################################
 
+membership = Table(
+    'project_membership', Base.metadata,
+    Column('project_id', Integer, ForeignKey('project.id'), primary_key=True),
+    Column('member_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('created_date',DateTime, default=datetime.utcnow)
+)
+
 class Project(Base):
     __tablename__ = 'project'
     id = Column(Integer,primary_key = True)
@@ -298,6 +292,7 @@ class Project(Base):
 
     pictures = image_attachment('ProjectImage', uselist = True)
     locations = relationship('ProjectSpot')
+    roles = relationship('Role')
 
     @property
     def current_location(self):
@@ -362,8 +357,100 @@ class ProjectSpot(Base):
         pt = to_shape(self.geom)
         pt_txt = 'POINT({} {})'.format(pt.x, pt.y)
         return pt_txt
+###############################################################################
+#Roles Class
+###############################################################################
+ROLE_MODES = dict( new = 0, casting = 1, auditioning = 2, selected = 3, archived = 4)
+
+role_invites = Table(
+    'role_invites', Base.metadata,
+    Column('role_id', Integer, ForeignKey('roles.id'), primary_key=True),
+    Column('invited_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('created_date',DateTime, default=datetime.utcnow)
+)
+
+role_auditioning = Table(
+    'role_auditioning', Base.metadata,
+    Column('role_id', Integer, ForeignKey('roles.id'), primary_key=True),
+    Column('actor_id', Integer, ForeignKey('user.id'), primary_key=True),
+    Column('created_date',DateTime, default=datetime.utcnow)
+)
+
+class Role(Base):
+    """Roles define the relationship between users and projects"""
+    __tablename__ = 'roles'
+    id = Column(Integer, primary_key=True)
+    character_name = Column(String(255),nullable = False)
+    info = Column(Text,nullable = True)
+
+    #Modes
+    role_status = Column(Integer,default = ROLE_MODES['new'])
+
+    #Relationships
+    project_id = Column(Integer, ForeignKey('project.id'),nullable=True)
+    pictures = image_attachment('RoleImage', uselist = True)
+
+    #Auditioning Cast List Relationships (Invite, Audition, Select Pipeline)
+    selected_id = Column(Integer, ForeignKey('user.id'))
+    selected = relationship("User", back_populates="staring_in")
+    
+    # this relationship is used for persistence
+    invitees = relationship("User", secondary=role_invites,
+                           primaryjoin = id==role_invites.c.role_id,
+                           secondaryjoin=User.id==role_invites.c.invited_id,
+    )
+    
+    auditioners = relationship("User", secondary=role_auditioning,
+                           primaryjoin = id==role_auditioning.c.role_id,
+                           secondaryjoin=User.id==role_auditioning.c.actor_id,
+    )
+
+invite_union = select([
+                        role_invites.c.role_id,
+                        role_invites.c.invited_id
+                        ]).union(
+                            select([
+                                role_invites.c.invited_id,
+                                role_invites.c.role_id]
+                            )
+                    ).alias()
+
+audition_union = select([
+                        role_auditioning.c.role_id,
+                        role_auditioning.c.actor_id
+                        ]).union(
+                            select([
+                                role_auditioning.c.actor_id,
+                                role_auditioning.c.role_id]
+                            )
+                    ).alias()                            
+                            
+#List Of Primary Keys To Users In Role
+Role.invites = relationship('User',
+                       secondary=invite_union,
+                       primaryjoin=Role.id==invite_union.c.role_id,
+                       secondaryjoin=User.id==invite_union.c.invited_id,
+                       viewonly=True)
+
+Role.auditions = relationship('User',
+                       secondary=audition_union,
+                       primaryjoin=Role.id==audition_union.c.role_id,
+                       secondaryjoin=User.id==audition_union.c.actor_id,
+                       viewonly=True)
 
 
+class RoleImage(Base, Image):
+    """User picture model."""
+    __tablename__ = 'role_pictures'
+    role_id = Column(Integer, ForeignKey('roles.id'), primary_key=True)
+    role = relationship(Role)
+    order_index = Column(Integer,primary_key = True)
+    created_date = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def object_id(self):
+        key = '{0},{1}'.format(self.role_id, self.order_index)
+        return int(hashlib.sha1(key).hexdigest(), 16)
 
 ###############################################################################
 #Dummy Data Loading
@@ -407,6 +494,10 @@ def makeProjects():
                 q = session.query(User).filter(User.email == actor)
                 member = q.first()
                 project.members.append(member)
+
+                #add role
+                role = Role(character_name=member.name)
+                project.roles.append(role)
 
             #Add The Geolocationary Data
             geo = ProjectSpot(geom = 'POINT({:3.3f} {:3.3f})'.format(LAT+random(),\

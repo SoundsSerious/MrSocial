@@ -111,7 +111,7 @@ class Login(Widget):
 
     def update_rect(self,*args):
         if not self.bck_init:
-            for i in range(5):
+            for i in range(10):
                 #Iteration On Startup...Kinda shitty..
                 #better to create expanding image class
                 self._image.size = self.get_background_size()
